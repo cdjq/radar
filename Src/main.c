@@ -198,8 +198,6 @@ int main(void)
 			  while(HAL_UART_Receive_IT(&huart1, (uint8_t *)aRxBuffer, 1) != HAL_OK)
 				  ;
 		  }
-		//  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
-
 		  if ((config.measureMode == 1) && (doDet == 1)) {
 			  execDetOnce(handle, reflections, reflection_count_max, &result_info);
 			  //int status = huart1.RxState;
@@ -207,11 +205,9 @@ int main(void)
 			  doDet = 0;
 			  if (!config.compareSwitch) {
 				  if (config.distance1 <= config.compareLength) {
-					  //HAL_UART_Transmit_IT(&huart1, "1234", 4);
-					  while(huart1.gState != HAL_UART_STATE_READY);
-					  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
+					  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
 				  } else {
-					  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);
+					  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
 				  }
 			  }
 		  }
@@ -237,8 +233,6 @@ int main(void)
 
 
 	  }
-
-
 
     /* USER CODE BEGIN 3 */
   }
