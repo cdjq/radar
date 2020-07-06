@@ -1,0 +1,2 @@
+example_service_power_bins.c:38:6:acc_example_service_power_bins	72	static
+example_service_power_bins.c:82:6:execute_power_bins	88	dynamic

@@ -1,0 +1,3 @@
+example_detector_distance_peak.c:45:6:acc_example_detector_distance_peak	80	static
+example_detector_distance_peak.c:115:6:execute_detection	88	dynamic
+example_detector_distance_peak.c:184:6:print_distances	32	static

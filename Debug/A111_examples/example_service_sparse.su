@@ -1,0 +1,2 @@
+example_service_sparse.c:38:6:acc_example_service_sparse	80	static
+example_service_sparse.c:86:6:execute_sparse	96	dynamic

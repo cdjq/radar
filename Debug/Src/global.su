@@ -1,0 +1,6 @@
+global.c:10:13:readFlash	32	static
+global.c:26:13:writeFlash	40	static,ignoring_inline_asm
+global.c:46:6:storeConfig	8	static
+global.c:52:6:restoreConfig	8	static
+global.c:56:6:getConfig	16	static
+global.c:60:6:writeCali	24	static,ignoring_inline_asm

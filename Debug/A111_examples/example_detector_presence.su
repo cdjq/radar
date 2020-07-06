@@ -1,0 +1,2 @@
+example_detector_presence.c:26:13:set_default_configuration	16	static
+example_detector_presence.c:36:6:acc_example_detector_presence	88	static

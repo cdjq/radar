@@ -1,0 +1,4 @@
+ref_app_smart_presence.c:36:13:set_default_configuration	40	static
+ref_app_smart_presence.c:59:13:execute_wakeup	32	static
+ref_app_smart_presence.c:95:13:execute_movement_tracking	32	static
+ref_app_smart_presence.c:132:6:acc_ref_app_smart_presence	72	static

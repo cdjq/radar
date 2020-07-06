@@ -1,0 +1,3 @@
+rtu.c:10:10:crcCheck	24	static
+rtu.c:41:5:rtuExpRsp	24	static
+rtu.c:83:5:rtuParse	296	static

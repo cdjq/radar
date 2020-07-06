@@ -1,0 +1,7 @@
+tim.c:51:6:MX_TIM2_Init	40	static
+tim.c:80:6:MX_TIM15_Init	40	static
+tim.c:110:6:HAL_TIM_Base_MspInit	24	static
+tim.c:145:6:HAL_TIM_Base_MspDeInit	16	static
+tim.c:190:6:TIM2_IRQHandler	8	static
+tim.c:197:6:HAL_TIM_PeriodElapsedCallback	16	static
+tim.c:216:6:TIM15_IRQHandler	8	static

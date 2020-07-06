@@ -1,0 +1,2 @@
+radar.c:15:5:radarInit	32	static
+radar.c:89:6:execDetOnce	32	static

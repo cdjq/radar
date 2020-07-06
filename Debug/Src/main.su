@@ -1,0 +1,5 @@
+main.c:71:6:dataParse	24	static
+main.c:128:6:initConfig	4	static
+main.c:130:5:main	72	static
+main.c:252:6:SystemClock_Config	192	static
+main.c:309:6:Error_Handler	4	static
