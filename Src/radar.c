@@ -33,9 +33,9 @@ int radarInit()
 
 		acc_detector_distance_peak_set_absolute_amplitude(distance_configuration, true);
 		if (!config.sort) {
-			acc_detector_distance_peak_set_sort_by_amplitude(distance_configuration, true);
-		} else {
 			acc_detector_distance_peak_set_sort_by_amplitude(distance_configuration, false);
+		} else {
+			acc_detector_distance_peak_set_sort_by_amplitude(distance_configuration, true);
 		}
 
 		acc_detector_distance_peak_running_average_factor_set(distance_configuration, ((float)config.relate) / 100);
