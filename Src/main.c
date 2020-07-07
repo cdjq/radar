@@ -219,6 +219,7 @@ int main(void)
 				  ret = rtuParse(USART_RX_BUF, USART_RX_POS); //ret = 0成功//ret = 1更改配置重启
 				  while(huart1.gState != HAL_UART_STATE_READY);
 				  if (ret == 1) {
+					  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
 					  HAL_TIM_Base_Stop_IT(&htim15);
 					  CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
 					  (&huart1)->gState = HAL_UART_STATE_BUSY;
