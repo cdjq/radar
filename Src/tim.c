@@ -214,16 +214,16 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 
 /* USER CODE BEGIN 1 */
 
-volatile uint8_t dataFrameComp = 1;           //浼犺緭甯х粨鏉熸寚�??�??
-volatile uint8_t dataFrameErr = 0;            //涓�甯у唴鐩搁偦�?�楄妭闂撮殧瓒呰�??1.5瀛楃锛�??
-                                          //璁や负杩欏抚鏈夎锛岃涓㈠�??
-volatile uint16_t timInCount = 0;       //鐢ㄦ潵璁板綍杩涘叆�?�氭椂鍣ㄤ腑鏂鏁�??
-volatile uint8_t dataAna = 0;
-volatile uint8_t tim16Count = 0;
-volatile uint8_t doDet = 0;
+volatile uint8_t dataFrameComp = 1;           //数据帧结束标志，当
+volatile uint8_t dataFrameErr = 0;            //数据帧错误标识，当两字节间隔大于1字节，此标志置位
+
+volatile uint16_t timInCount = 0;       // tim2 控制的计数
+volatile uint8_t dataAna = 0;           // tim2 控制的数据需要分析标志
+volatile uint8_t tim16Count = 0;         //tim16控制的计数
+volatile uint8_t doDet = 0;             //tim15控制的检测标志
 extern UART_HandleTypeDef huart1;
-volatile uint8_t reboot = 0;
-volatile uint8_t rebootCount = 0;
+volatile uint8_t reboot = 0;          //tim16控制的需要重启标志
+volatile uint8_t rebootCount = 0;        //tim15控制的指示灯闪烁计数
 
 void TIM2_IRQHandler(void)
 {
@@ -234,6 +234,16 @@ void TIM2_IRQHandler(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *timer)
 {
+	/*
+	 * tim2中断里，每次让timInCount加1，如果=5，表示帧错误，=9，表示帧结束。
+	 * modbus rtu协议规定帧内错误间隔是1.5字节，就是同一帧内2个字节传输间隔要小于1.5字节（这里的字节包括起始位、停止位、奇偶校验位（如果有），所以
+	 * 大概是10、11个bit），如果同一帧两字节间隔大于1.5字节，认为帧错误，要放弃这一帧内容，帧与帧间隔要大于3.5字节。
+	 * 根据tim2 的设置，每0.5字节会进一次中断，所以1.5字节对应3次进中断，3.5字节对应7次进中断
+	 * 但是由于每次进中断是一个字节结束后才进（就是说接收到一个字节的最后一个bit才进中断，而不是接收到第一个bit时就进），
+	 * 所以一个字节结束到下一个字节开始是1.5字节的话，一个字节结束到下一个字节结束就是2.5字节
+	 * 一个字节结束到下一个字节开始是3.5字节的话，一个字节结束到下一个字节结束就是4.5字节
+	 * 所以之前算的次数都要加上2
+	 */
 	if (timer->Instance == htim2.Instance) {
 		timInCount++;
 		//printf("1");
@@ -244,41 +254,50 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *timer)
 			//printf("\n timecallback end\n");
 			dataFrameComp = 1;
 			dataAna = 1;
-			HAL_TIM_Base_Stop_IT(&htim2);
+			HAL_TIM_Base_Stop_IT(&htim2);                       //一帧结束后关tim2，下次串口接受中断再开启
 		}
-	} else if (timer->Instance == htim15.Instance) {
+	}
+	/*
+	 * 每0.1s进一次tim15中断
+	 * 如果reboot是0，让doDet置位，表示要进行一次测量
+	 * 如果reboot = 1，表示要重启，就进行指示灯闪烁的操作，
+	 */
+	else if (timer->Instance == htim15.Instance) {
 		if(!reboot) {
 			doDet = 1;
 		} else {
-			doDet = 0;
-			HAL_UART_DeInit(&huart1);
+			//doDet = 0;
+			//HAL_UART_DeInit(&huart1);
 			rebootCount++;
 			if (! (rebootCount%2)) {
 				HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_2);
 			}
 			if (rebootCount == 60) {
-				storeConfig();
+				storeConfig();     //保存配置
 				__set_FAULTMASK(1);//关闭所有中断
-				NVIC_SystemReset();
+				NVIC_SystemReset();//重启
 			}
 		}
-	} else if (timer->Instance == htim16.Instance) {
+	}
+	/*
+	 *tim16，配置时每1s进一次中断，由按键中断开启，
+	 */
+	else if (timer->Instance == htim16.Instance) {
 		tim16Count++;
-		if (tim16Count == 2) {
+		if (tim16Count == 2) {            //如果tim16计数到了2，仍没有关tim16，表示按了按键2s，需要重启
 			reboot = 1;
-			tim16Count = 0;
-			setConfig();
-			//config = {.pid=0x0002, .vid=0x0010, .addr=0x0C, .baudrate=0x03, .parity=0, .stopBit=0x01, .number=0,
-			//		0xffff, 0, 0xffff, 0, 0xffff, 0, 0xffff, 0, 0xffff, 0,
-				//	.sort = 0, .start=0x00C8, .stop = 0x19C0, 0x0190, 0x0A, 0x46, 0x02, 0x01, 0x012C, 0, 0x03};
-
+			//tim16Count = 0;
+			setConfig();                   //恢复雷达默认配置
+			HAL_UART_DeInit(&huart1);     //关串口
 		//	storeConfig();
-		//	__set_FAULTMASK(1);//关闭所有中断
+		//	__set_FAULTMASK(1);
 		//	NVIC_SystemReset();
 		}
 	}
 }
-
+/*
+ * 雷达配置的默认值
+ */
 void setConfig()
 {
 	config.pid = 0x0002;

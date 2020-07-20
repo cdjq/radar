@@ -42,7 +42,7 @@
 #include "global.h"
 
 /* USER CODE BEGIN 0 */
-uint8_t USART_RX_BUF[256] = {0};
+uint8_t USART_RX_BUF[256] = {0};        //定义接受数据的缓存buf，modbus协议一帧数据不会超过256字节，雷达应用定义的寄存器少，实际不会用到100字节
 uint8_t USART_RX_POS = 0;
 uint8_t aRxBuffer[1];
 uint8_t dataErr = 0;
@@ -170,7 +170,9 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 #endif
-*/
+/*
+ * 定义write调用中断发送
+ */
 int _write(int file, char *ptr, int len)
 {
 	/*
@@ -187,31 +189,37 @@ extern volatile uint8_t timInCount;
 extern volatile uint8_t dataAna;
 extern TIM_HandleTypeDef htim2;
 
-
+/*
+ * 接受中断最终会调用这个回调函数
+ */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if( huart->Instance==USART1) {
-		timInCount = 0;
-		if (dataFrameComp) {
+		timInCount = 0;                 //每次让tim2中断里操作的变量timInCount清零
+		if (dataFrameComp) {            //如果上一帧已经完，说明这次是本帧的第一个字节产生的中断
 			dataFrameComp = 0;
 			dataFrameErr = 0;
 			dataErr = 0;
 			dataAna = 0;
-			USART_RX_BUF[0] = aRxBuffer[0];
-			USART_RX_POS = 1;
-		} else {
-			USART_RX_BUF[USART_RX_POS] = aRxBuffer[0];
-			USART_RX_POS++;
-			if (USART_RX_POS == 256) {
+			USART_RX_BUF[0] = aRxBuffer[0];            //给缓存buf的第一字节赋值
+			USART_RX_POS = 1;                          //让缓存buf的计数器从第二字节开始
+		}
+		/*
+		 * 不是帧的第一个字节产生的中断
+		 */
+		else {
+			USART_RX_BUF[USART_RX_POS] = aRxBuffer[0];          //给缓存buf相应位置赋值
+			USART_RX_POS++;                                    //计数器加一
+			if (USART_RX_POS == 256) {                         //计数器不能超范围
 				USART_RX_POS = 0;
 			}
-			HAL_TIM_Base_Stop_IT(&htim2);
+			HAL_TIM_Base_Stop_IT(&htim2);                       //关tim2，为了让tim2计数器清零
 			if (dataFrameErr) {
 				dataErr = 1;
 			}
 		}
-		__HAL_TIM_SET_COUNTER(&htim2, 0);
-		HAL_TIM_Base_Start_IT(&htim2);
+		__HAL_TIM_SET_COUNTER(&htim2, 0);                  //tim2计数器清零
+		HAL_TIM_Base_Start_IT(&htim2);                      //重启
 	}
 }
 
@@ -224,6 +232,9 @@ void USART1_IRQHandler(void)
 	uint32_t cr1its     = READ_REG(huart1.Instance->CR1);
 	uint32_t cr3its     = READ_REG(huart1.Instance->CR3);
 	uint32_t errorflags = (isrflags & (uint32_t)(USART_ISR_PE | USART_ISR_FE | USART_ISR_ORE | USART_ISR_NE));
+	/*
+	 * 如果是接受中断，或者错误中断，进第一个分支
+	 */
 	if ( (((errorflags == RESET) && (isrflags & USART_ISR_RXNE) != RESET) && ((cr1its & USART_CR1_RXNEIE) != RESET)) ||
 			((errorflags != RESET)&& (((cr3its & USART_CR3_EIE) != RESET)
 	          || ((cr1its & (USART_CR1_RXNEIE | USART_CR1_PEIE)) != RESET)))) {
@@ -236,12 +247,12 @@ void USART1_IRQHandler(void)
 			if(timeout>maxDelay) break;
 		}
 		timeout=0;
-		while(HAL_UART_Receive_IT(&huart1, (uint8_t *)aRxBuffer, 1) != HAL_OK)
+		while(HAL_UART_Receive_IT(&huart1, (uint8_t *)aRxBuffer, 1) != HAL_OK)  //HAL库函数HAL_UART_IRQHandler会关串口接受中断，需要重新开启
 		{
 			timeout++;
 			if(timeout>maxDelay) break;
 		}
-	} else {
+	} else {                                 //如果是发送中断
 		HAL_UART_IRQHandler(&huart1);
 	}
 }

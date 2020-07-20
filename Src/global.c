@@ -3,6 +3,9 @@
 #include "stm32l4xx_hal_flash.h"
 #include "stdint.h"
 
+/*
+ * config的初始值
+ */
 sConfig_t config = {.pid=0x0002, .vid=0x0010, .addr=0x0C, .baudrate=0x03, .parity=0, .stopBit=0x01, .number=0,
 		0xffff, 0, 0xffff, 0, 0xffff, 0, 0xffff, 0, 0xffff, 0,
 		.sort = 0, .start=0x00C8, .stop = 0x19C0, 0x0190, 0x0A, 0x46, 0x02, 0x01, 0x012C, 0x03};
@@ -33,7 +36,7 @@ static void writeFlash(void *data, uint8_t len)
 	HAL_FLASHEx_Erase(&eraseInit, &pageError);
 	__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_PGAERR | FLASH_FLAG_WRPERR);
 	for(uint8_t i=0; i < len; ) {
-		HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, *((uint64_t *)data + i/8));
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, *((uint64_t *)data + i/8));  //stm32l4只支持8字节写
 		addr += 8;
 		i += 8;
 	}
@@ -44,9 +47,9 @@ static void writeFlash(void *data, uint8_t len)
 }
 
 void storeConfig(){
-	writeCali(0);
-	writeFlash(&config, 48);
-	writeCali(0x0102030401020304);
+	writeCali(0);                          //写校验为0
+	writeFlash(&config, 48);               //写配置
+	writeCali(0x0102030401020304);          //再写校验，启动时通过判断校验是否是0102030401020304判断配置是否写入成功，防止写配置时断电
 }
 
 void restoreConfig(void){

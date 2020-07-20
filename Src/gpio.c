@@ -40,6 +40,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "gpio.h"
 #include "usart.h"
+#include "tim.h"
+
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
@@ -109,7 +111,7 @@ void MX_GPIO_Init(void)
 
 	//配置按键复位
 	GPIO_InitStruct.Pin = GPIO_PIN_3;
-	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;       //上升沿、下降沿触发
 	  GPIO_InitStruct.Pull = GPIO_NOPULL;
 	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	  HAL_NVIC_SetPriority(EXTI3_IRQn, 8, 0);
@@ -134,10 +136,11 @@ extern TIM_HandleTypeDef htim16;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == GPIO_PIN_3) {
-		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) == GPIO_PIN_SET) {
+		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) == GPIO_PIN_SET) { //如果按键闭合
 			//__HAL_TIM_CLEAR_IT(&htim16, TIM_IT_UPDATE);
-			__HAL_TIM_SET_COUNTER(&htim16, 0);
-			HAL_TIM_Base_Start_IT(&htim16);
+			tim16Count = 0;
+			__HAL_TIM_SET_COUNTER(&htim16, 0);               //让tim16计数器清零
+			HAL_TIM_Base_Start_IT(&htim16);                  //开启tim16
 		} else {
 			HAL_TIM_Base_Stop_IT(&htim16);
 			//HAL_UART_Transmit_IT(&huart1, "0", 1);

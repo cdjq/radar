@@ -7,6 +7,9 @@
 #include "global.h"
 #include "usart.h"
 
+/*
+ * crc检验函数
+ */
 uint16_t crcCheck(uint8_t *data, uint8_t size)
 {
 	uint8_t i0,i1;
@@ -37,7 +40,13 @@ uint16_t crcCheck(uint8_t *data, uint8_t size)
 #define RTU_EXCEPT3 3
 #define RTU_EXCEPT4 4
 
-
+/*
+ * 这个函数用来返回错误信息，
+ * 1 表示不支持的功能码
+ * 2 表示寄存器地址错误 或 寄存器地址+数据长度超长
+ * 3 表示数据错误
+ * 4 表示传感器内部错误，本程序不会用到这个
+ */
 int rtuExpRsp(uint8_t rtuExp, uint8_t *data)
 {
 	int ret = -1;
@@ -69,6 +78,10 @@ extern acc_detector_distance_peak_handle_t handle;
 extern uint8_t configUart;
 
 const uint8_t zero = 0;
+
+/*
+ * 定义一个数组，里面放config结构体成员的地址，方面读写
+ */
 uint8_t *configuration[52] = {(uint8_t *)&config.pid + 1, (uint8_t *)&config.pid, (uint8_t *)&config.vid + 1,
 		(uint8_t *)&config.vid, &zero, &config.addr, &zero, &config.baudrate, &config.parity, &config.stopBit,
 		&zero, &config.number, (uint8_t *)&config.distance1 + 1, (uint8_t *)&config.distance1, (uint8_t *)&config.amplitude1 + 1,
@@ -80,16 +93,20 @@ uint8_t *configuration[52] = {(uint8_t *)&config.pid + 1, (uint8_t *)&config.pid
 		(uint8_t *)&config.stop, (uint8_t *)&config.threshold + 1, (uint8_t *)&config.threshold, &zero,
 		&config.average, &zero, &config.relate, &zero, &config.profile, &zero, &config.measureMode,
 		(uint8_t *)&config.compareLength + 1, (uint8_t *)&config.compareLength, &zero, &config.powerSaveMode};
+
+/*
+ * modbus rtu协议检验函数
+ */
 int rtuParse (uint8_t *data,uint8_t len)
 {
 
     int ret = -1;
-    uint8_t pdata[256];
+    uint8_t pdata[256];                      //因为需要对数据帧进行操作，所以取原串口缓存的一份拷贝，对改拷贝操作
 	for(uint8_t i=0; i<len; i++) {
 		pdata[i] = ((uint8_t *)data)[i];
 	}
     switch (pdata[1]) {
-		case 0x03:
+		case 0x03:                      //读寄存器
 			if(pdata[0]) {
 				if (pdata[4] || !pdata[5] || (pdata[5] > 0x1A)) {
 					rtuExpRsp(RTU_EXCEPT3, pdata);
@@ -126,7 +143,7 @@ int rtuParse (uint8_t *data,uint8_t len)
 				}
 			}
 			break;
-		case 0x06:
+		case 0x06:                //写一个寄存器
 			if(pdata[2] || (pdata[3] > 0x19) || (pdata[3] < 2) || (pdata[3] > 4 && pdata[3] < 0X10)) {
 				rtuExpRsp(RTU_EXCEPT2, pdata);
 			}else {
@@ -143,21 +160,25 @@ int rtuParse (uint8_t *data,uint8_t len)
 					}
 					*(configuration[addr * 2]) = dataHi;
 					*(configuration[addr * 2 + 1]) = dataLo;
-					storeConfig();
-					if(pdata[0]) {
+					storeConfig();                     //保存配置
+					if(pdata[0]) {                    //pdata[0]如果是0，表示数据帧是广播，不需要回，不是0才返回数据
 						HAL_UART_Transmit_IT(&huart1, pdata, 8);
 					}
 					ret = 1;
 				}
 			}
 			break;
-		case 0x10:
+		case 0x10:                 //写多个寄存器
 			if (pdata[4] || !pdata[5] || (pdata[6] != pdata[5] * 2) || (pdata[5] > 0x0B)) {
 				rtuExpRsp(RTU_EXCEPT3, pdata);
 			} else if ( !pdata[2] && ((pdata[3]>1 && pdata[3]<5 && pdata[3]+pdata[5]<6) || (pdata[3]>0x0F && pdata[3]+pdata[5]<0x1B))) {
 				uint8_t addr;
 				uint8_t dataHi, dataLo;
 				uint16_t temp = 0, temp1 = 0;
+
+				/*
+				 * 每次从数据中读取2字节，组成一个寄存器，然后判断这个寄存器中的数据是否不对，判断是否修改了uart配置，记录起始地址和结束地址
+				 */
 				for (uint8_t i=0; i < pdata[5]; i++) {
 					dataHi = pdata[7 + 2 * i];
 					dataLo = pdata[8 + 2 * i];
@@ -179,7 +200,9 @@ int rtuParse (uint8_t *data,uint8_t len)
 						temp1 = (dataHi << 8) + dataLo;
 					}
 				}
-
+                /*
+                 * 如果测量起始地址和结束地址有误，返回数据错误
+                 */
 				if ((temp && temp1 &&(temp >= temp1)) ||(temp && !temp1 && (temp>= config.stop)) || (!temp && temp1 && (temp1 <= config.start))) {
 					rtuExpRsp(RTU_EXCEPT3, pdata);
 					goto out;
@@ -187,9 +210,9 @@ int rtuParse (uint8_t *data,uint8_t len)
 				for (uint8_t i=0; i<pdata[6]; i++) {
 					*(configuration[pdata[3] * 2 + i]) = pdata[7+i];
 				}
-				storeConfig();
+				storeConfig();               //保存配置
 				ret = 1;
-				if(pdata[0]) {
+				if(pdata[0]) {              //pdata[0]如果是0，表示广播，不需要回，不是0才返回数据
 					pdata[6] = crcCheck(pdata, 6) & 0xff;
 					pdata[7] = crcCheck(pdata, 6) >> 8;
 					HAL_UART_Transmit_IT(&huart1, pdata, 8);
