@@ -148,36 +148,37 @@ int main(void)
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
-
+  if (*(uint64_t *)0x8032800 == 0x0102030401020304) {
+ 	  restoreConfig();
+  } else {
+	  storeConfig();
+  }
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
-  MX_TIM15_Init();
+   MX_TIM15_Init();
+   MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
+  //__HAL_RCC_PWR_CLK_ENABLE();
+  //HAL_PWR_DeInit();
+
   HAL_UART_Receive_IT(&huart1, (uint8_t *)&aRxBuffer, 1);
   /* USER CODE END 2 */
-  if (*(uint64_t *)0x8032800 == 0x0102030401020304) {
-  	  restoreConfig();
-  } else {
-	  storeConfig();
-  }
 
   POWER_ON
    HAL_Delay(1000);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	  CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
-  	  (&huart1)->gState = HAL_UART_STATE_BUSY;
+   CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
+  (&huart1)->gState = HAL_UART_STATE_BUSY;
   acc_hal_t hal = acc_hal_integration_get_implementation();
   if (!acc_rss_activate(&hal)) {
   	return false;
   }
-  //printf("config.measuaremode = %d\n", config.measureMode);
   while (1)
   {
-    /* USER CODE END WHILE */
 	  radarInit();
 	  SET_BIT(huart1.Instance->CR1, USART_CR1_TE);
 	  huart1.gState = HAL_UART_STATE_READY;
@@ -191,29 +192,40 @@ int main(void)
 		  __HAL_TIM_SET_COUNTER(&htim15, 0);
 		  HAL_TIM_Base_Start_IT(&htim15);
 	  }
-
 	  while (1) {
-
 		  if (huart1.RxState == HAL_UART_STATE_READY) {
 			  while(HAL_UART_Receive_IT(&huart1, (uint8_t *)aRxBuffer, 1) != HAL_OK)
 				  ;
 		  }
+
 		  if ((config.measureMode == 1) && (doDet == 1)) {
-			  execDetOnce(handle, reflections, reflection_count_max, &result_info);
-			  //int status = huart1.RxState;
-			  //HAL_UART_Transmit_IT(&huart1, (uint8_t *)&status, 4);
+/*
+			  CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
+			  (&huart1)->gState = HAL_UART_STATE_BUSY;
+			  acc_detector_distance_peak_activate(handle);
+			  SET_BIT(huart1.Instance->CR1, USART_CR1_TE);
+			  huart1.gState = HAL_UART_STATE_READY;
+*/
+				execDetOnce(handle, reflections, reflection_count_max, &result_info);
+/*
+				CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
+				(&huart1)->gState = HAL_UART_STATE_BUSY;
+				acc_detector_distance_peak_deactivate(handle);
+				SET_BIT(huart1.Instance->CR1, USART_CR1_TE);
+				huart1.gState = HAL_UART_STATE_READY;
+*/
 			  doDet = 0;
-			  if (!config.compareSwitch) {
-				  if (config.distance1 <= config.compareLength) {
-					  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-				  } else {
-					  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-				  }
+			  if (config.distance1 <= config.compareLength) {
+				  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+			  } else {
+				  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
 			  }
+			  //HAL_UART_Transmit_IT(&huart1, &tim16Count, 1);
 		  }
 		  if (dataAna && !dataErr) {
 			  dataAna = 0;
 			  uint8_t aa = dataParse(USART_RX_BUF, USART_RX_POS);
+			  //HAL_UART_Transmit_IT(&huart1, &USART_RX_BUF, USART_RX_POS);
 			  if (aa) {
 				  uint8_t ret;
 				  ret = rtuParse(USART_RX_BUF, USART_RX_POS); //ret = 0成功//ret = 1更改配置重启
@@ -232,12 +244,10 @@ int main(void)
 
 		  }
 
-
 	  }
 
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
+
 }
 
 /**

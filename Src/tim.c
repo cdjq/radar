@@ -39,6 +39,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "tim.h"
+#include "main.h"
+#include "global.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -46,6 +48,7 @@
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim15;
+TIM_HandleTypeDef htim16;
 
 /* TIM2 init function */
 void MX_TIM2_Init(void)
@@ -107,6 +110,23 @@ void MX_TIM15_Init(void)
 
 }
 
+void MX_TIM16_Init(void)
+{
+	  htim16.Instance = TIM16;
+	  htim16.Init.Prescaler = 10000-1;
+	  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
+	  htim16.Init.Period = 8000-1;
+	  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	  htim16.Init.RepetitionCounter = 0;
+	  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+	  {
+	    Error_Handler();
+	  }
+	  __HAL_TIM_CLEAR_IT(&htim16, TIM_IT_UPDATE);
+
+}
+
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 {
 
@@ -139,6 +159,10 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE BEGIN TIM15_MspInit 1 */
 
   /* USER CODE END TIM15_MspInit 1 */
+  } else if (tim_baseHandle->Instance==TIM16) {
+	  __HAL_RCC_TIM16_CLK_ENABLE();
+	  HAL_NVIC_SetPriority(TIM1_UP_TIM16_IRQn, 8, 0);
+	  HAL_NVIC_EnableIRQ(TIM1_UP_TIM16_IRQn);
   }
 }
 
@@ -172,6 +196,19 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE BEGIN TIM15_MspDeInit 1 */
 
   /* USER CODE END TIM15_MspDeInit 1 */
+  } else if(tim_baseHandle->Instance==TIM16)
+  {
+  /* USER CODE BEGIN TIM15_MspDeInit 0 */
+
+  /* USER CODE END TIM15_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM16_CLK_DISABLE();
+
+    /* TIM15 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(TIM1_UP_TIM16_IRQn);
+  /* USER CODE BEGIN TIM15_MspDeInit 1 */
+
+  /* USER CODE END TIM15_MspDeInit 1 */
   }
 } 
 
@@ -180,12 +217,13 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 volatile uint8_t dataFrameComp = 1;           //浼犺緭甯х粨鏉熸寚�??�??
 volatile uint8_t dataFrameErr = 0;            //涓�甯у唴鐩搁偦�?�楄妭闂撮殧瓒呰�??1.5瀛楃锛�??
                                           //璁や负杩欏抚鏈夎锛岃涓㈠�??
-volatile uint8_t timInCount = 0;       //鐢ㄦ潵璁板綍杩涘叆�?�氭椂鍣ㄤ腑鏂鏁�??
+volatile uint16_t timInCount = 0;       //鐢ㄦ潵璁板綍杩涘叆�?�氭椂鍣ㄤ腑鏂鏁�??
 volatile uint8_t dataAna = 0;
-
+volatile uint8_t tim16Count = 0;
 volatile uint8_t doDet = 0;
 extern UART_HandleTypeDef huart1;
-
+volatile uint8_t reboot = 0;
+volatile uint8_t rebootCount = 0;
 
 void TIM2_IRQHandler(void)
 {
@@ -208,15 +246,81 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *timer)
 			dataAna = 1;
 			HAL_TIM_Base_Stop_IT(&htim2);
 		}
-	} else if(timer->Instance == htim15.Instance) {
-		doDet = 1;
+	} else if (timer->Instance == htim15.Instance) {
+		if(!reboot) {
+			doDet = 1;
+		} else {
+			doDet = 0;
+			HAL_UART_DeInit(&huart1);
+			rebootCount++;
+			if (! (rebootCount%2)) {
+				HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_2);
+			}
+			if (rebootCount == 60) {
+				storeConfig();
+				__set_FAULTMASK(1);//关闭所有中断
+				NVIC_SystemReset();
+			}
+		}
+	} else if (timer->Instance == htim16.Instance) {
+		tim16Count++;
+		if (tim16Count == 2) {
+			reboot = 1;
+			tim16Count = 0;
+			setConfig();
+			//config = {.pid=0x0002, .vid=0x0010, .addr=0x0C, .baudrate=0x03, .parity=0, .stopBit=0x01, .number=0,
+			//		0xffff, 0, 0xffff, 0, 0xffff, 0, 0xffff, 0, 0xffff, 0,
+				//	.sort = 0, .start=0x00C8, .stop = 0x19C0, 0x0190, 0x0A, 0x46, 0x02, 0x01, 0x012C, 0, 0x03};
+
+		//	storeConfig();
+		//	__set_FAULTMASK(1);//关闭所有中断
+		//	NVIC_SystemReset();
+		}
 	}
 }
+
+void setConfig()
+{
+	config.pid = 0x0002;
+	config.vid = 0x0010;
+	config.addr = 0x0c;
+	config.baudrate = 0x03;
+	config.parity = 0;
+	config.stopBit = 0x01;
+	config.number = 0;
+	config.distance1 = 0xffff;
+	config.amplitude1 = 0;
+	config.distance2 = 0xffff;
+	config.amplitude2 = 0;
+	config.distance3 = 0xffff;
+	config.amplitude3 = 0;
+	config.distance4 = 0xffff;
+	config.amplitude4 = 0;
+	config.distance5 = 0xffff;
+	config.amplitude5 = 0;
+	config.sort = 0;
+	config.start = 0x00c8;
+	config.stop = 0x19c0;
+	config.threshold = 0x0190;
+	config.average = 0x0a;
+	config.relate = 0x46;
+	config.profile = 0x02;
+	config.compareLength = 0x12c;
+	config.powerSaveMode = 0x0003;
+}
+
 /* USER CODE END 1 */
 void TIM15_IRQHandler(void)
 {
 	if (__HAL_TIM_GET_FLAG(&htim15, TIM_FLAG_UPDATE) != RESET) {
 		HAL_TIM_IRQHandler(&htim15);
+	}
+}
+
+void TIM1_UP_TIM16_IRQHandler(void)
+{
+	if (__HAL_TIM_GET_FLAG(&htim16, TIM_FLAG_UPDATE) != RESET) {
+		HAL_TIM_IRQHandler(&htim16);
 	}
 }
 

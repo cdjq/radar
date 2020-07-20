@@ -39,6 +39,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "gpio.h"
+#include "usart.h"
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
@@ -106,12 +107,43 @@ void MX_GPIO_Init(void)
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-
+	//配置按键复位
+	GPIO_InitStruct.Pin = GPIO_PIN_3;
+	  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+	  GPIO_InitStruct.Pull = GPIO_NOPULL;
+	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	  HAL_NVIC_SetPriority(EXTI3_IRQn, 8, 0);
+	  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 }
 
 /* USER CODE BEGIN 2 */
+void EXTI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
 
+  /* USER CODE END EXTI3_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
+
+  /* USER CODE END EXTI3_IRQn 1 */
+}
+
+extern TIM_HandleTypeDef htim16;
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if (GPIO_Pin == GPIO_PIN_3) {
+		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) == GPIO_PIN_SET) {
+			//__HAL_TIM_CLEAR_IT(&htim16, TIM_IT_UPDATE);
+			__HAL_TIM_SET_COUNTER(&htim16, 0);
+			HAL_TIM_Base_Start_IT(&htim16);
+		} else {
+			HAL_TIM_Base_Stop_IT(&htim16);
+			//HAL_UART_Transmit_IT(&huart1, "0", 1);
+		}
+	}
+}
 /* USER CODE END 2 */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

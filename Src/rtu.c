@@ -69,7 +69,7 @@ extern acc_detector_distance_peak_handle_t handle;
 extern uint8_t configUart;
 
 const uint8_t zero = 0;
-uint8_t *configuration[54] = {(uint8_t *)&config.pid + 1, (uint8_t *)&config.pid, (uint8_t *)&config.vid + 1,
+uint8_t *configuration[52] = {(uint8_t *)&config.pid + 1, (uint8_t *)&config.pid, (uint8_t *)&config.vid + 1,
 		(uint8_t *)&config.vid, &zero, &config.addr, &zero, &config.baudrate, &config.parity, &config.stopBit,
 		&zero, &config.number, (uint8_t *)&config.distance1 + 1, (uint8_t *)&config.distance1, (uint8_t *)&config.amplitude1 + 1,
 		(uint8_t *)&config.amplitude1, (uint8_t *)&config.distance2 + 1, (uint8_t *)&config.distance2, (uint8_t *)&config.amplitude2 + 1,
@@ -79,7 +79,7 @@ uint8_t *configuration[54] = {(uint8_t *)&config.pid + 1, (uint8_t *)&config.pid
 		(uint8_t *)&config.amplitude5, &zero, &config.sort, (uint8_t *)&config.start + 1, (uint8_t *)&config.start, (uint8_t *)&config.stop + 1,
 		(uint8_t *)&config.stop, (uint8_t *)&config.threshold + 1, (uint8_t *)&config.threshold, &zero,
 		&config.average, &zero, &config.relate, &zero, &config.profile, &zero, &config.measureMode,
-		(uint8_t *)&config.compareLength + 1, (uint8_t *)&config.compareLength, &zero, &config.compareSwitch, &zero, &config.powerSaveMode};
+		(uint8_t *)&config.compareLength + 1, (uint8_t *)&config.compareLength, &zero, &config.powerSaveMode};
 int rtuParse (uint8_t *data,uint8_t len)
 {
 
@@ -89,33 +89,30 @@ int rtuParse (uint8_t *data,uint8_t len)
 		pdata[i] = ((uint8_t *)data)[i];
 	}
     switch (pdata[1]) {
-    /*
-    	case  0x64:
-			if(pdata[4] || (pdata[5]!=1))
-				rtuExpRsp(RTU_EXCEPT3, pdata);
-			else if(pdata[2] || pdata[3])
-				rtuExpRsp(RTU_EXCEPT2, pdata);
-			else {
-				if(pdata[0]) {
-					pdata[2] = 1;
-					pdata[3] = crcCheck(pdata, 3) & 0xff;
-					pdata[4] = crcCheck(pdata, 4) >> 8;
-					ret = serialSend(pdata, 5);
-				}
-				rebootSystem();
-			}
-			break;
-	*/
 		case 0x03:
 			if(pdata[0]) {
-				if (pdata[4] || !pdata[5] || (pdata[5] > 0x1B)) {
+				if (pdata[4] || !pdata[5] || (pdata[5] > 0x1A)) {
 					rtuExpRsp(RTU_EXCEPT3, pdata);
-				} else if ( !pdata[2] && (pdata[3] + pdata[5] < 0x1C)) {
+				} else if ( !pdata[2] && (pdata[3] + pdata[5] < 0x1B)) {
 					uint8_t addr = pdata[3];
 					uint8_t num = pdata[5] * 2;
 					pdata[2] = num;
 					if (config.measureMode == 0 && !(addr > 0x0F || ((addr + num/2) < 0x05))) {
+						/*
+						CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
+						(&huart1)->gState = HAL_UART_STATE_BUSY;
+						acc_detector_distance_peak_activate(handle);
+						SET_BIT(huart1.Instance->CR1, USART_CR1_TE);
+						huart1.gState = HAL_UART_STATE_READY;
+						*/
 						execDetOnce(handle, reflections, reflection_count_max, &result_info);
+						/*
+						CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);
+						(&huart1)->gState = HAL_UART_STATE_BUSY;
+						acc_detector_distance_peak_deactivate(handle);
+						SET_BIT(huart1.Instance->CR1, USART_CR1_TE);
+						huart1.gState = HAL_UART_STATE_READY;
+						*/
 					}
 					for (uint8_t temp = 0; temp < num; temp++) {
 						pdata[3 + temp] = *configuration[addr * 2 + temp];
@@ -130,15 +127,15 @@ int rtuParse (uint8_t *data,uint8_t len)
 			}
 			break;
 		case 0x06:
-			if(pdata[2] || (pdata[3] > 0x1A) || (pdata[3] < 2) || (pdata[3] > 4 && pdata[3] < 0X10)) {
+			if(pdata[2] || (pdata[3] > 0x19) || (pdata[3] < 2) || (pdata[3] > 4 && pdata[3] < 0X10)) {
 				rtuExpRsp(RTU_EXCEPT2, pdata);
 			}else {
 				uint8_t addr = pdata[3], dataHi = pdata[4], dataLo = pdata[5];
 				if (((addr == 0x02) && (dataHi || dataLo > 0xF7 || !dataLo)) || ((addr == 0x03) && (dataHi))||(addr == 0x10 && (dataHi || dataLo > 1)) || (((addr == 0x11) ||
 						(addr == 0x12)) && (((dataHi<<8)+dataLo) < 0x46 || ((dataHi<<8)+dataLo) > 0x19C0))|| ((addr == 0x12 && (((dataHi<<8)+dataLo) <= config.start))) ||
 						((addr == 0x11) && ((dataHi<<8)+dataLo)>=config.stop) ||((addr == 0x13) && (((dataHi<<8)+dataLo) < 0x64 || ((dataHi<<8)+dataLo) > 0x2701)) || ((addr == 0x14) && (dataHi || !dataLo ||
-						dataLo>0x3F)) || ((addr == 0X15) && (dataHi || dataLo > 0x64)) || ((addr == 0x16) && (dataHi || (dataLo>4))) ||((addr == 0x17|| addr == 0x19) && (dataHi || dataLo > 1))
-						|| ((addr == 0x18) && (((dataHi<<8)+dataLo) < 0x46 || ((dataHi<<8)+dataLo) > 0x19C0)) || ((addr == 0x1A) && (dataHi || dataLo>3))) {
+						dataLo>0x3F)) || ((addr == 0X15) && (dataHi || dataLo > 0x64)) || ((addr == 0x16) && (dataHi || (dataLo>4))) ||((addr == 0x17) && (dataHi || dataLo > 1))
+						|| ((addr == 0x18) && (((dataHi<<8)+dataLo) < 0x46 || ((dataHi<<8)+dataLo) > 0x19C0)) || ((addr == 0x19) && (dataHi || dataLo>3))) {
 					rtuExpRsp(RTU_EXCEPT3, pdata);
 				} else {
 					if((addr == 0x03 && (dataLo != config.baudrate)) || (addr == 0x04 && (((dataHi<<8)+dataLo) != ((config.parity<<8)+config.stopBit)))) {
@@ -157,7 +154,7 @@ int rtuParse (uint8_t *data,uint8_t len)
 		case 0x10:
 			if (pdata[4] || !pdata[5] || (pdata[6] != pdata[5] * 2) || (pdata[5] > 0x0B)) {
 				rtuExpRsp(RTU_EXCEPT3, pdata);
-			} else if ( !pdata[2] && ((pdata[3]>1 && pdata[3]<5 && pdata[3]+pdata[5]<6) || (pdata[3]>0x0F && pdata[3]+pdata[5]<0x1C))) {
+			} else if ( !pdata[2] && ((pdata[3]>1 && pdata[3]<5 && pdata[3]+pdata[5]<6) || (pdata[3]>0x0F && pdata[3]+pdata[5]<0x1B))) {
 				uint8_t addr;
 				uint8_t dataHi, dataLo;
 				uint16_t temp = 0, temp1 = 0;
@@ -170,8 +167,8 @@ int rtuParse (uint8_t *data,uint8_t len)
 					}
 					if (((addr == 0x02) && (dataHi || dataLo > 0xF7 || !dataLo)) || ((addr == 0x03) && (dataHi))||(addr == 0x10 && (dataHi || dataLo > 1)) || (((addr == 0x11) ||
 							(addr == 0x12)) && (((dataHi<<8)+dataLo) < 0x46 || ((dataHi<<8)+dataLo) > 0x19C0)) || ((addr == 0x13) && (((dataHi<<8)+dataLo) < 0x64 || ((dataHi<<8)+dataLo) > 0x2701)) || ((addr == 0x14) && (dataHi || !dataLo ||
-							dataLo>0x3F)) || ((addr == 0X15) && (dataHi || dataLo > 0x64)) || ((addr == 0x16) && (dataHi || (dataLo>4))) ||((addr == 0x17|| addr == 0x19) && (dataHi || dataLo > 1))
-							|| ((addr == 0x18) && (((dataHi<<8)+dataLo) < 0x46 || ((dataHi<<8)+dataLo) > 0x19C0)) || ((addr == 0x1A) && (dataHi || dataLo>3))) {
+							dataLo>0x3F)) || ((addr == 0X15) && (dataHi || dataLo > 0x64)) || ((addr == 0x16) && (dataHi || (dataLo>4))) ||((addr == 0x17) && (dataHi || dataLo > 1))
+							|| ((addr == 0x18) && (((dataHi<<8)+dataLo) < 0x46 || ((dataHi<<8)+dataLo) > 0x19C0)) || ((addr == 0x19) && (dataHi || dataLo>3))) {
 						rtuExpRsp(RTU_EXCEPT3, pdata);
 						goto out;
 					}

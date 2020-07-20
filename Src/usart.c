@@ -56,10 +56,31 @@ void MX_USART1_UART_Init(void)
 {
 
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
+	uint32_t baud[8] = {2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200};
+	if (config.baudrate && (config.baudrate < 9)) {
+		huart1.Init.BaudRate = baud[config.baudrate - 1];
+	} else {
+		huart1.Init.BaudRate = 9600;
+	}
+	if (config.parity == 0 || config.parity > 2) {
+		huart1.Init.WordLength = UART_WORDLENGTH_8B;
+		 huart1.Init.Parity = UART_PARITY_NONE;
+	} else if(config.parity == 1) {
+		huart1.Init.WordLength = UART_WORDLENGTH_9B;
+		huart1.Init.Parity = UART_PARITY_EVEN;
+	} else if(config.parity == 2) {
+		huart1.Init.WordLength = UART_WORDLENGTH_9B;
+		huart1.Init.Parity = UART_PARITY_ODD;
+	}
+	if (config.stopBit == 1 || config.stopBit >3) {
+		huart1.Init.StopBits = UART_STOPBITS_1;
+	} else if (!config.stopBit) {
+		huart1.Init.StopBits = UART_STOPBITS_0_5;
+	} else if (config.stopBit == 2) {
+		huart1.Init.StopBits = UART_STOPBITS_1_5;
+	} else {
+		huart1.Init.StopBits = UART_STOPBITS_2;
+	}
   huart1.Init.Mode = UART_MODE_TX_RX;
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -229,16 +250,20 @@ void uartConfig()
 {
 	uint32_t baud[8] = {2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200};
 	HAL_UART_DeInit(&huart1);
+
 	if (config.baudrate && (config.baudrate < 9)) {
 		huart1.Init.BaudRate = baud[config.baudrate - 1];
 	} else {
 		huart1.Init.BaudRate = 9600;
 	}
 	if (config.parity == 0 || config.parity > 2) {
+		huart1.Init.WordLength = UART_WORDLENGTH_8B;
 		 huart1.Init.Parity = UART_PARITY_NONE;
 	} else if(config.parity == 1) {
+		huart1.Init.WordLength = UART_WORDLENGTH_9B;
 		huart1.Init.Parity = UART_PARITY_EVEN;
 	} else if(config.parity == 2) {
+		huart1.Init.WordLength = UART_WORDLENGTH_9B;
 		huart1.Init.Parity = UART_PARITY_ODD;
 	}
 	if (config.stopBit == 1 || config.stopBit >3) {

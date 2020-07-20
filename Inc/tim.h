@@ -52,6 +52,7 @@
 
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim15;
+extern TIM_HandleTypeDef htim16;
 
 /* USER CODE BEGIN Private defines */
 extern volatile uint8_t dataAna;
@@ -59,13 +60,15 @@ extern volatile uint8_t dataAna;
 
 void MX_TIM2_Init(void);
 void MX_TIM15_Init(void);
+void MX_TIM16_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 extern volatile uint8_t dataFrameComp;
 extern volatile uint8_t dataFrameErr;
-extern volatile uint8_t timInCount;
+extern volatile uint16_t timInCount;
 extern volatile uint8_t dataAna;
 extern volatile uint8_t doDet;
+extern volatile uint8_t tim16Count;
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

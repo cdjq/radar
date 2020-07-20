@@ -51,10 +51,11 @@ typedef struct {
 	uint8_t profile;
 	uint8_t measureMode;
 	uint16_t compareLength;
-	uint8_t compareSwitch;
+	//uint8_t compareSwitch;
 	uint8_t powerSaveMode;
 	//uint8_t calibration;
-} sConfig_t;             //44字节
+	uint8_t no[5];
+} sConfig_t;
 
 #pragma pack(pop)
 

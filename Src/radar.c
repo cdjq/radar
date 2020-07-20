@@ -20,7 +20,7 @@ int radarInit()
 		{
 			//fprintf(stderr, "acc_detector_distance_peak_configuration_create() failed\n");
 			acc_rss_deactivate();
-			//return false;
+			return false;
 		}
 		acc_detector_distance_peak_service_profile_set(distance_configuration, config.profile + 1);
 		if (config.stop - config.start <= 1900) {
@@ -79,10 +79,12 @@ int radarInit()
 	    //printf("gain = %d\n", (uint8_t)(gain*100));
 
 	    acc_base_configuration_power_save_mode_set(base_configuration, config.powerSaveMode);
-
-		if (!acc_detector_distance_peak_activate(handle)) {
-			acc_detector_distance_peak_destroy(&handle);
-		}
+	  //  if (config.measureMode == 1) {
+			if (!acc_detector_distance_peak_activate(handle)) {
+				acc_detector_distance_peak_destroy(&handle);
+			}
+	 //   }
+	 //   */
 
 }
 
