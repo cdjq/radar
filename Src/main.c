@@ -263,7 +263,7 @@ int main(void)
 			  dataAna = 0;
 			  uint8_t aa = dataParse(USART_RX_BUF, USART_RX_POS);   //先进性数据长度的判断，和crc判断
 			  //HAL_UART_Transmit_IT(&huart1, &USART_RX_BUF, USART_RX_POS);
-			  if (aa) {
+			  if (aa) {                                           //如果通过长度和crc判断
 				  uint8_t ret;
 				  ret = rtuParse(USART_RX_BUF, USART_RX_POS); //ret = 0成功//ret = 1需要更改配置，重新设置雷达
 				  while (huart1.gState != HAL_UART_STATE_READY);       //这句话是等待数据发送完毕，保证数据发送完毕，再把串口发送关了
@@ -271,7 +271,7 @@ int main(void)
 					  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);      //关指示灯
 					  HAL_TIM_Base_Stop_IT(&htim15);                             //关tim15
 					  CLEAR_BIT(huart1.Instance->CR1, USART_CR1_TE);             //关串口发送
-					  (&huart1)->gState = HAL_UART_STATE_BUSY;
+					  (&huart1)->gState = HAL_UART_STATE_BUSY;                    //关串口发送
 
 					  /*
 					   * 这几行关雷达，并回收资源

@@ -142,7 +142,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			__HAL_TIM_SET_COUNTER(&htim16, 0);               //让tim16计数器清零
 			HAL_TIM_Base_Start_IT(&htim16);                  //开启tim16
 		} else {
-			HAL_TIM_Base_Stop_IT(&htim16);
+			HAL_TIM_Base_Stop_IT(&htim16);                  //如果按键闭合，关tim16
 			//HAL_UART_Transmit_IT(&huart1, "0", 1);
 		}
 	}

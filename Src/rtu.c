@@ -213,7 +213,7 @@ int rtuParse (uint8_t *data,uint8_t len)
 				storeConfig();               //保存配置
 				ret = 1;
 				if(pdata[0]) {              //pdata[0]如果是0，表示广播，不需要回，不是0才返回数据
-					pdata[6] = crcCheck(pdata, 6) & 0xff;
+					pdata[6] = crcCheck(pdata, 6) & 0xff;             //crc的低字节放前面，高字节放后面
 					pdata[7] = crcCheck(pdata, 6) >> 8;
 					HAL_UART_Transmit_IT(&huart1, pdata, 8);
 				}

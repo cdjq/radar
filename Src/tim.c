@@ -51,6 +51,11 @@ TIM_HandleTypeDef htim15;
 TIM_HandleTypeDef htim16;
 
 /* TIM2 init function */
+/*
+ * 初始化tim2，tim配置成每0.5字节（这里的字节包括起始位、结束位、校验位共11bit）产生一个中断，
+ * 当波特率是115200时，tim2预分频 = （80，000，000 * （11/2））/ 115200 = 3819.444...
+ * 所以预分频可以取 955 和 4（955 * 4 = 3820）
+ */
 void MX_TIM2_Init(void)
 {
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
@@ -247,6 +252,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *timer)
 	if (timer->Instance == htim2.Instance) {
 		timInCount++;
 		//printf("1");
+		/*
+		 * tim2始化的时候设置的产生中断的时间间隔是按照115200波特率设计的，因为雷达设置串口最高波特率是115200，其他可选波特率都是它的因数，
+		 * 所以当串口选取别的波特率时，只要把timInCount的计数扩大成成115200除以当前波特率的倍数，就可以保证时间判断的正确
+		 * 比如当前波特率是9600， 115200 / 9600 = 12， 115200时计数到9表示一帧接受完，那么9600时，计数要到9 * 12 = 108。
+		 */
+
 		if (timInCount == 5 * (115200/huart1.Init.BaudRate)) {
 			dataFrameErr = 1;
 		}
